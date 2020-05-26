@@ -1,0 +1,10 @@
+{
+    "DeploymentMethod": "lambda",
+    "Functions": {
+        "place4pals": {
+            "PhysicalId": {
+                "us-east-2": "place4pals"
+            }
+        }
+    }
+}

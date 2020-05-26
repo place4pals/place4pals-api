@@ -1,0 +1,14 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: An AWS Serverless Specification template describing your function.
+Resources:
+  place4pals:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: place4pals
+      Description: ''
+      Handler: index.handler
+      MemorySize: 128
+      Role: 'arn:aws:iam::362059672355:role/service-role/place4pals-role-j286jcyv'
+      Runtime: nodejs12.x
+      Timeout: 3
