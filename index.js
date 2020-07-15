@@ -11,7 +11,14 @@ exports.handler = async(event, context) => {
     console.log("place4pals init");
     console.log(event);
 
-    if (event.triggerSource === 'TokenGeneration_Authentication') {
+    if (event.triggerSource === 'PostConfirmation_ConfirmSignUp') {
+        let pool = new Pool(poolConfig);
+        let response = await pool.query('INSERT INTO users(id, email, username, user_type) VALUES($1, $2, $3, $4) RETURNING *', [event.request.userAttributes['sub'], event.request.userAttributes['email'], event.request.userAttributes['custom:username'], 'pal']);
+        console.log(response);
+        pool.end();
+        return context.done(null, event);
+    }
+    else { //if (event.triggerSource === 'TokenGeneration_Authentication')
         event.response = {
             "claimsOverrideDetails": {
                 "claimsToAddOrOverride": {
@@ -25,15 +32,5 @@ exports.handler = async(event, context) => {
             }
         };
         return context.done(null, event);
-    }
-    else if (event.triggerSource === 'PostConfirmation_ConfirmSignUp') {
-        let pool = new Pool(poolConfig);
-        let response = await pool.query('INSERT INTO users(id, email, username, user_type) VALUES($1, $2, $3, $4) RETURNING *', [event.request.userAttributes['sub'], event.request.userAttributes['email'], event.request.userAttributes['custom:username'], 'pal']);
-        console.log(response);
-        pool.end();
-        return context.done(null, event);
-    }
-    else {
-        return { statusCode: 200, body: JSON.stringify('nothing happened!') };
     }
 };
