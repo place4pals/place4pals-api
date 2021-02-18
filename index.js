@@ -18,7 +18,7 @@ exports.handler = async(event, context) => {
         pool.end();
         return context.done(null, event);
     }
-    else { //if (event.triggerSource === 'TokenGeneration_Authentication')
+    else if (['TokenGeneration_Authentication', 'TokenGeneration_RefreshTokens'].includes(event.triggerSource)) {
         event.response = {
             "claimsOverrideDetails": {
                 "claimsToAddOrOverride": {
@@ -26,7 +26,7 @@ exports.handler = async(event, context) => {
                         "x-hasura-allowed-roles": ["user", "admin"],
                         "x-hasura-default-role": "user",
                         "x-hasura-user-id": event.request.userAttributes.sub,
-                        "x-hasura-role": event.request.userAttributes.sub === "18cc0fe3-ad0b-44f8-a622-fd470c7eeb78" ? "admin" : "user"
+                        "x-hasura-role": "user"
                     })
                 }
             }
