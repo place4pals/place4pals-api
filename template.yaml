@@ -9,6 +9,6 @@ Resources:
       Description: ''
       Handler: index.handler
       MemorySize: 128
-      Role: 'arn:aws:iam::362059672355:role/service-role/place4pals-role-j286jcyv'
-      Runtime: nodejs12.x
+      Role: 'arn:aws:iam::802704413743:role/service-role/place4pals-role-7y46zjis'
+      Runtime: nodejs14.x
       Timeout: 3
