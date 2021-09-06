@@ -7,6 +7,8 @@ const poolConfig = {
     password: process.env.password,
     port: process.env.port
 };
+const { formatEmailBody } = require('./email.js');
+const { Expo } = require('expo-server-sdk');
 
 exports.handler = async(event, context) => {
     console.log("place4pals init", event);
@@ -65,8 +67,8 @@ exports.handler = async(event, context) => {
 
         //send welcome email
         aws.config.update({ region: 'us-east-1' });
-        let emailSubject = `Welcome to place4pals, ${event.request.userAttributes['custom:username']}!`;
-        let emailBody = `Hey there, ${event.request.userAttributes['custom:username']}!<p><a href="https://app.p4p.io/login?email=${event.request.email}">Click this link to login.</a><p>Thanks,<br>place4pals`;
+        let emailSubject = `welcome to place4pals, ${event.request.userAttributes['custom:username']}!`;
+        let emailBody = formatEmailBody(`hey there, ${event.request.userAttributes['custom:username']}!<p><a href="https://app.p4p.io/login?email=${event.request.email}">click this link to login.</a><p>thanks,<br>place4pals`, event.request.userAttributes['email']);
         await new aws.SES().sendEmail({
             Destination: { ToAddresses: [event.request.userAttributes['email']] },
             Message: {
@@ -88,16 +90,16 @@ exports.handler = async(event, context) => {
     //     return context.done(null, event);
     // }
     else if (event.triggerSource === 'CustomMessage_ForgotPassword') {
-        event.response.emailSubject = `Reset your password, ${event.request.userAttributes['preferred_username']}`;
-        event.response.emailMessage = `Hey there, ${event.request.userAttributes['preferred_username']}!<p>We received a request to reset your password.</p><p><a href="https://app.p4p.io/set?email=${event.request.userAttributes.email}&code=${event.request.codeParameter}">Click this link to set your new password.</a><p>If you did not request this, you can ignore this email.</p><p>Thanks,<br>place4pals<div style="display:none"><a>${event.request.codeParameter}</a><a>${event.request.codeParameter}</a></div>`;
+        event.response.emailSubject = `reset your password, ${event.request.userAttributes['preferred_username']}`;
+        event.response.emailMessage = formatEmailBody(`hey there, ${event.request.userAttributes['preferred_username']}!<p>we received a request to reset your password.</p><p><a href="https://app.p4p.io/set?email=${event.request.userAttributes.email}&code=${event.request.codeParameter}">click this link to set your new password.</a><p>if you did not request this, you can ignore this email.</p><p>thanks,<br>place4pals<div style="display:none"><a>${event.request.codeParameter}</a><a>${event.request.codeParameter}</a></div>`, event.request.userAttributes['email']);
 
         return context.done(null, event);
     }
     else if (event.triggerSource === 'PostConfirmation_ConfirmForgotPassword') {
         //send email letting user know someone reset their password
         aws.config.update({ region: 'us-east-1' });
-        let emailSubject = `Alert: You changed your password, ${event.request.userAttributes['custom:username']}`;
-        let emailBody = `Hey there, ${event.request.userAttributes['custom:username']},<p>You've successfully changed your password! If you did not do this, we highly recommend changing your password immediately.</p><p><a href="https://app.p4p.io/reset?email=${event.request.userAttributes.email}">Click this link to change your password again.</a><p>Otherwise, you can ignore this email.</p><p>Thanks,<br>place4pals`;
+        let emailSubject = `alert: you changed your password, ${event.request.userAttributes['custom:username']}`;
+        let emailBody = formatEmailBody(`hey there, ${event.request.userAttributes['custom:username']},<p>you've successfully changed your password! if you did not do this, we highly recommend changing your password immediately.</p><p><a href="https://app.p4p.io/reset?email=${event.request.userAttributes.email}">click this link to change your password again.</a><p>otherwise, you can ignore this email.</p><p>thanks,<br>place4pals`, event.request.userAttributes['email']);
         await new aws.SES().sendEmail({
             Destination: { ToAddresses: [event.request.userAttributes['email']] },
             Message: {
@@ -126,6 +128,13 @@ exports.handler = async(event, context) => {
             console.log(response);
             return { statusCode: 302, body: null, headers: { 'Access-Control-Allow-Origin': '*', 'Location': `https://app.place4pals.com/login?email=${event.queryStringParameters.email}` } };
         }
+        else if (event.path.endsWith('/unsubscribe')) {
+            return {
+                statusCode: 200,
+                body: `${event.queryStringParameters.email} is now unsubscribed!`,
+                headers: { 'Access-Control-Allow-Origin': '*' }
+            };
+        }
         else if (event.path.endsWith('/test')) {
             return {
                 statusCode: 200,
@@ -140,7 +149,7 @@ exports.handler = async(event, context) => {
     else if (event.path.startsWith('/test')) {
         aws.config.update({ region: 'us-east-1' });
         let emailSubject = `Welcome to place4pals!`;
-        let emailBody = `Hey!<p><a href="https://app.p4p.io/login">Click this link to login.</a><p>Thanks,<br>place4pals`;
+        let emailBody = formatEmailBody(`hey!<p><a href="https://app.p4p.io/login">click this link to login.</a><p>thanks,<br>place4pals`, 'chris@productabot.com');
         await new aws.SES().sendEmail({
             Destination: { ToAddresses: ['chris@productabot.com'] },
             Message: {
