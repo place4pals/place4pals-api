@@ -10,7 +10,7 @@ const poolConfig = {
 const { formatEmailBody } = require('./email.js');
 const { Expo } = require('expo-server-sdk');
 
-exports.handler = async(event, context) => {
+exports.handler = async (event, context) => {
     console.log("place4pals init", event);
     event.body ? event.body = JSON.parse(event.body) : null;
 
@@ -84,11 +84,11 @@ exports.handler = async(event, context) => {
 
         return context.done(null, event);
     }
-    // else if (event.triggerSource === 'CustomMessage_SignUp') {
-    //     event.response.emailSubject = `Confirm your registration, ${event.request.userAttributes['custom:username']}!`;
-    //     event.response.emailMessage = `Hey!<p><a href="https://lambda.place4pals.com/public/confirm?username=${event.userName}&code=${event.request.codeParameter}&email=${event.request.email}">Click this link to complete your registration.</a><p>Thanks,<br>place4pals<div style="display:none"><a>${event.request.codeParameter}</a><a>${event.request.codeParameter}</a></div>`;
-    //     return context.done(null, event);
-    // }
+    else if (event.triggerSource === 'CustomMessage_UpdateUserAttribute') {
+        event.response.emailSubject = `confirm your new email address, ${event.request.userAttributes['custom:username']}!`;
+        event.response.emailMessage = `hey!<p><a href="https://lambda.place4pals.com/public/verify?username=${event.userName}&code=${event.request.codeParameter}">click this link to confirm your new email address.</a><p>thanks,<br>place4pals<div style="display:none"><a>${event.request.codeParameter}</a><a>${event.request.codeParameter}</a></div>`;
+        return context.done(null, event);
+    }
     else if (event.triggerSource === 'CustomMessage_ForgotPassword') {
         event.response.emailSubject = `reset your password, ${event.request.userAttributes['preferred_username']}`;
         event.response.emailMessage = formatEmailBody(`hey there, ${event.request.userAttributes['preferred_username']}!<p>we received a request to reset your password.</p><p><a href="https://app.p4p.io/set?email=${event.request.userAttributes.email}&code=${event.request.codeParameter}">click this link to set your new password.</a><p>if you did not request this, you can ignore this email.</p><p>thanks,<br>place4pals<div style="display:none"><a>${event.request.codeParameter}</a><a>${event.request.codeParameter}</a></div>`, event.request.userAttributes['email']);
@@ -122,11 +122,22 @@ exports.handler = async(event, context) => {
             console.log(response);
             return { statusCode: 302, body: null, headers: { 'Access-Control-Allow-Origin': '*', 'Location': 'https://app.place4pals.com' } };
         }
-        else if (event.path.endsWith('/confirm')) {
+        else if (event.path.endsWith('/verify')) {
             const cisp = new aws.CognitoIdentityServiceProvider();
-            let response = await cisp.confirmSignUp({ ClientId: process.env.clientId, ConfirmationCode: event.queryStringParameters.code, Username: event.queryStringParameters.username }).promise();
-            console.log(response);
-            return { statusCode: 302, body: null, headers: { 'Access-Control-Allow-Origin': '*', 'Location': `https://app.place4pals.com/login?email=${event.queryStringParameters.email}` } };
+            try {
+                let response = await cisp.adminUpdateUserAttributes({
+                    UserAttributes: [{ Name: 'email_verified', Value: 'true' }],
+                    UserPoolId: process.env.userPoolId,
+                    Username: event.queryStringParameters.username
+
+                }).promise();
+                console.log(response);
+                return { statusCode: 302, body: null, headers: { 'Access-Control-Allow-Origin': '*', 'Location': `https://app.place4pals.com` } };
+            }
+            catch (err) {
+
+                return { statusCode: 200, body: JSON.stringify(err), headers: { 'Access-Control-Allow-Origin': '*' } };
+            }
         }
         else if (event.path.endsWith('/unsubscribe')) {
             return {
