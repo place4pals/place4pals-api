@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "zip -r ~/lambda.zip * && aws lambda update-function-code --function-name place4pals --zip-file \"fileb://~/lambda.zip\""
   },
   "author": "",
   "license": "ISC",

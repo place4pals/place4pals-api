@@ -32,14 +32,22 @@ exports.handler = async (event, context) => {
     else if (event.triggerSource === "PreSignUp_SignUp") {
         //check if the username exists in current cognito pool or not
         const cisp = new aws.CognitoIdentityServiceProvider();
-        let users = await cisp.listUsers({
+        const usernameSearch = await cisp.listUsers({
             UserPoolId: process.env.userPoolId,
             AttributesToGet: ['email'],
             Filter: `preferred_username = "${event.request.userAttributes['custom:username']}"`,
             Limit: '1'
         }).promise();
-        if (users.Users.length === 0) {
-            event.response.autoConfirmUser = true;
+
+        let emailSearch = await cisp.listUsers({
+            UserPoolId: process.env.userPoolId,
+            AttributesToGet: ['email'],
+            Filter: `email = "${event.request.userAttributes['email']}"`,
+            Limit: '1'
+        }).promise();
+
+        if (usernameSearch.Users.length === 0 && emailSearch.Users.length === 0) {
+            // event.response.autoConfirmUser = true;
             return context.done(null, event);
         }
         else {
@@ -67,16 +75,26 @@ exports.handler = async (event, context) => {
 
         //send welcome email
         aws.config.update({ region: 'us-east-1' });
-        let emailSubject = `welcome to place4pals, ${event.request.userAttributes['custom:username']}!`;
-        let emailBody = formatEmailBody(`hey there, ${event.request.userAttributes['custom:username']}!<p><a href="https://app.p4p.io/login?email=${event.request.email}">click this link to login.</a><p>thanks,<br>place4pals`, event.request.userAttributes['email']);
         await new aws.SES().sendEmail({
             Destination: { ToAddresses: [event.request.userAttributes['email']] },
             Message: {
+                Subject: { Data: `welcome to place4pals, ${event.request.userAttributes['custom:username']}!` },
                 Body: {
-                    Html: { Charset: "UTF-8", Data: emailBody },
-                    Text: { Charset: "UTF-8", Data: emailBody }
-                },
-                Subject: { Charset: 'UTF-8', Data: emailSubject }
+                    Html: { Data: formatEmailBody(`hey there, ${event.request.userAttributes['custom:username']}!<p><a href="https://app.p4p.io/login?email=${event.request.userAttributes.email}">click this link to login.</a><p>thanks,<br>place4pals`, event.request.userAttributes['email']) }
+                }
+            },
+            Source: 'place4pals <noreply@place4pals.com>',
+            ReplyToAddresses: ['place4pals <noreply@place4pals.com>']
+        }).promise();
+
+        //send admin user signup message
+        await new aws.SES().sendEmail({
+            Destination: { ToAddresses: ['chris@place4pals.com'] },
+            Message: {
+                Subject: { Data: `place4pals event: ${event.request.userAttributes['custom:username']} just signed up` },
+                Body: {
+                    Html: { Data: formatEmailBody(`hey admin,<p>${event.request.userAttributes['custom:username']} just signed up!<p>thanks,<br>place4pals`, event.request.userAttributes['email']) }
+                }
             },
             Source: 'place4pals <noreply@place4pals.com>',
             ReplyToAddresses: ['place4pals <noreply@place4pals.com>']
@@ -84,9 +102,19 @@ exports.handler = async (event, context) => {
 
         return context.done(null, event);
     }
+    else if (event.triggerSource === 'CustomMessage_SignUp') {
+        event.response.emailSubject = `confirm your registration, ${event.request.userAttributes['custom:username']}!`;
+        event.response.emailMessage = formatEmailBody(`hey!<p><a href="https://lambda.place4pals.com/public/confirm?username=${event.userName}&code=${event.request.codeParameter}&email=${event.request.userAttributes.email}">click this link to complete your registration.</a><p>thanks,<br>place4pals<div style="display:none"><a>${event.request.codeParameter}</a><a>${event.request.codeParameter}</a></div>`, event.request.userAttributes.email);
+        return context.done(null, event);
+    }
     else if (event.triggerSource === 'CustomMessage_UpdateUserAttribute') {
+        let pool = new Pool(poolConfig);
+        let code = aws.util.uuid.v4();
+        console.log(code, event.userName);
+        await pool.query(`UPDATE users SET code='${code}' WHERE id='${event.userName}' `);
+
         event.response.emailSubject = `confirm your new email address, ${event.request.userAttributes['custom:username']}!`;
-        event.response.emailMessage = `hey!<p><a href="https://lambda.place4pals.com/public/verify?username=${event.userName}&code=${event.request.codeParameter}">click this link to confirm your new email address.</a><p>thanks,<br>place4pals<div style="display:none"><a>${event.request.codeParameter}</a><a>${event.request.codeParameter}</a></div>`;
+        event.response.emailMessage = formatEmailBody(`hey!<p><a href="https://lambda.place4pals.com/public/verify?username=${event.userName}&code=${event.request.codeParameter}">click this link to confirm your new email address.</a><p>thanks,<br>place4pals<div style="display:none"><a>${event.request.codeParameter}</a><a>${event.request.codeParameter}</a></div>`, event.request.userAttributes.email);
         return context.done(null, event);
     }
     else if (event.triggerSource === 'CustomMessage_ForgotPassword') {
@@ -98,16 +126,13 @@ exports.handler = async (event, context) => {
     else if (event.triggerSource === 'PostConfirmation_ConfirmForgotPassword') {
         //send email letting user know someone reset their password
         aws.config.update({ region: 'us-east-1' });
-        let emailSubject = `alert: you changed your password, ${event.request.userAttributes['custom:username']}`;
-        let emailBody = formatEmailBody(`hey there, ${event.request.userAttributes['custom:username']},<p>you've successfully changed your password! if you did not do this, we highly recommend changing your password immediately.</p><p><a href="https://app.p4p.io/reset?email=${event.request.userAttributes.email}">click this link to change your password again.</a><p>otherwise, you can ignore this email.</p><p>thanks,<br>place4pals`, event.request.userAttributes['email']);
         await new aws.SES().sendEmail({
             Destination: { ToAddresses: [event.request.userAttributes['email']] },
             Message: {
                 Body: {
-                    Html: { Charset: "UTF-8", Data: emailBody },
-                    Text: { Charset: "UTF-8", Data: emailBody }
+                    Html: { Data: formatEmailBody(`hey there, ${event.request.userAttributes['custom:username']},<p>you've successfully changed your password! if you did not do this, we highly recommend changing your password immediately.</p><p><a href="https://app.p4p.io/reset?email=${event.request.userAttributes.email}">click this link to change your password again.</a><p>otherwise, you can ignore this email.</p><p>thanks,<br>place4pals`, event.request.userAttributes['email']) }
                 },
-                Subject: { Charset: 'UTF-8', Data: emailSubject }
+                Subject: { Data: `alert: you changed your password, ${event.request.userAttributes['custom:username']}` }
             },
             Source: 'place4pals <noreply@place4pals.com>',
             ReplyToAddresses: ['place4pals <noreply@place4pals.com>']
@@ -122,21 +147,35 @@ exports.handler = async (event, context) => {
             console.log(response);
             return { statusCode: 302, body: null, headers: { 'Access-Control-Allow-Origin': '*', 'Location': 'https://app.place4pals.com' } };
         }
+        else if (event.path.endsWith('/confirm')) {
+            const cisp = new aws.CognitoIdentityServiceProvider();
+            let response = await cisp.confirmSignUp({ ClientId: process.env.clientId, ConfirmationCode: event.queryStringParameters.code, Username: event.queryStringParameters.username }).promise();
+            console.log(response);
+            return { statusCode: 302, body: null, headers: { 'Access-Control-Allow-Origin': '*', 'Location': `https://app.place4pals.com/login?email=${event.queryStringParameters.email}` } };
+        }
         else if (event.path.endsWith('/verify')) {
             const cisp = new aws.CognitoIdentityServiceProvider();
-            try {
-                let response = await cisp.adminUpdateUserAttributes({
-                    UserAttributes: [{ Name: 'email_verified', Value: 'true' }],
-                    UserPoolId: process.env.userPoolId,
-                    Username: event.queryStringParameters.username
 
-                }).promise();
-                console.log(response);
-                return { statusCode: 302, body: null, headers: { 'Access-Control-Allow-Origin': '*', 'Location': `https://app.place4pals.com` } };
+            let pool = new Pool(poolConfig);
+            let response = await pool.query(`SELECT code FROM users WHERE id='${event.queryStringParameters.username}' `);
+
+            if (response.rows[0].code !== event.queryStringParameters.code) {
+                return { statusCode: 200, body: "sorry, the code you provided to verify your email address is invalid", headers: { 'Access-Control-Allow-Origin': '*' } };
             }
-            catch (err) {
+            else {
+                try {
+                    let response = await cisp.adminUpdateUserAttributes({
+                        UserAttributes: [{ Name: 'email_verified', Value: 'true' }],
+                        UserPoolId: process.env.userPoolId,
+                        Username: event.queryStringParameters.username
 
-                return { statusCode: 200, body: JSON.stringify(err), headers: { 'Access-Control-Allow-Origin': '*' } };
+                    }).promise();
+                    console.log(response);
+                    return { statusCode: 302, body: null, headers: { 'Access-Control-Allow-Origin': '*', 'Location': `https://app.place4pals.com` } };
+                }
+                catch (err) {
+                    return { statusCode: 200, body: JSON.stringify(err), headers: { 'Access-Control-Allow-Origin': '*' } };
+                }
             }
         }
         else if (event.path.endsWith('/unsubscribe')) {
@@ -149,7 +188,7 @@ exports.handler = async (event, context) => {
         else if (event.path.endsWith('/test')) {
             return {
                 statusCode: 200,
-                body: JSON.stringify('hey there, pal'),
+                body: JSON.stringify('hey there, pal!'),
                 headers: { 'Access-Control-Allow-Origin': '*' }
             };
         }
@@ -159,16 +198,13 @@ exports.handler = async (event, context) => {
     }
     else if (event.path.startsWith('/test')) {
         aws.config.update({ region: 'us-east-1' });
-        let emailSubject = `Welcome to place4pals!`;
-        let emailBody = formatEmailBody(`hey!<p><a href="https://app.p4p.io/login">click this link to login.</a><p>thanks,<br>place4pals`, 'chris@productabot.com');
         await new aws.SES().sendEmail({
             Destination: { ToAddresses: ['chris@productabot.com'] },
             Message: {
+                Subject: { Data: `Welcome to place4pals!` },
                 Body: {
-                    Html: { Charset: "UTF-8", Data: emailBody },
-                    Text: { Charset: "UTF-8", Data: emailBody }
-                },
-                Subject: { Charset: 'UTF-8', Data: emailSubject }
+                    Html: { Data: formatEmailBody(`hey!<p><a href="https://app.p4p.io/login">click this link to login.</a><p>thanks,<br>place4pals`, 'chris@productabot.com') }
+                }
             },
             Source: 'place4pals <noreply@place4pals.com>',
             ReplyToAddresses: ['place4pals <noreply@place4pals.com>']
