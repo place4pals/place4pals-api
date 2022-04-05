@@ -210,4 +210,12 @@ exports.handler = async (event, context) => {
             ReplyToAddresses: ['place4pals <noreply@place4pals.com>']
         }).promise();
     }
+    else {
+        //we're redirecting to a user profile based on a given username
+        let hostSplit = event.headers.Host.split('.');
+        let pool = new Pool(poolConfig);
+        let response = await pool.query('SELECT id FROM users WHERE username=$1', [hostSplit[0]]);
+        let redirectDomain = event.headers.Host.split('.').slice(1).join('.');
+        return { statusCode: 302, body: null, headers: { 'Access-Control-Allow-Origin': '*', 'Location': response.rows.length > 0 ? `https://app.${redirectDomain}/user/${response.rows[0].id}` : `https://app.${redirectDomain}` } };
+    }
 };
