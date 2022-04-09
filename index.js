@@ -9,6 +9,7 @@ const poolConfig = {
 };
 const { formatEmailBody } = require('./email.js');
 const { Expo } = require('expo-server-sdk');
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 exports.handler = async (event, context) => {
     console.log("place4pals init", event);
@@ -185,10 +186,11 @@ exports.handler = async (event, context) => {
                 headers: { 'Access-Control-Allow-Origin': '*' }
             };
         }
-        else if (event.path.endsWith('/test')) {
+        else if (event.path.endsWith('/internetTest')) {
+            let response = await (await fetch('https://api.htic.io/test')).text();
             return {
                 statusCode: 200,
-                body: JSON.stringify('hey there, pal!'),
+                body: JSON.stringify(response),
                 headers: { 'Access-Control-Allow-Origin': '*' }
             };
         }
