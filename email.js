@@ -117,7 +117,7 @@ exports.formatEmailBody = function(body, email) {
                                 <td style="font-size: 10px; line-height: 15px; font-family: arial; color: #aaaaaa; text-align: center;"><a href="https://place4pals.com/donate">donate</a> | <a href="https://lambda.place4pals.com/public/unsubscribe?email=${email}">unsubscribe</a></td>
                             </tr>
                             <tr>
-                                <td style="font-size: 10px; line-height: 15px; font-family: arial; color: #aaaaaa; text-align: center;">© 2021 place4pals</td>
+                                <td style="font-size: 10px; line-height: 15px; font-family: arial; color: #aaaaaa; text-align: center;">© ${new Date().getFullYear()} place4pals</td>
                             </tr>
                         </table>
                     </td>
