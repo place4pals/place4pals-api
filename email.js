@@ -89,7 +89,7 @@ exports.formatEmailBody = function(body, email) {
                     </td>
                 </tr>
                 <tr>
-                    <td style="padding: 5px 20px !important; background-color: #eeefff;"
+                    <td style="padding: 20px !important; background-color: #eeefff;"
                         class="sm-p bar">
                         <table border="0"
                                cellpadding="0"

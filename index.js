@@ -19,16 +19,16 @@ function expandUuid(base64) {
     return Buffer.from(base64.replace(/-/g, '+').replace(/_/g, '/') + '==', 'base64').toString('hex');
 }
 
-exports.handler = async (event, context) => {
+exports.handler = async (event) => {
     console.log("place4pals init", event);
     event.body ? event.body = JSON.parse(event.body) : null;
 
-    if (['TokenGeneration_Authentication', 'TokenGeneration_RefreshTokens'].includes(event.triggerSource)) {
+    if (['TokenGeneration_Authentication', 'TokenGeneration_RefreshTokens', 'TokenGeneration_AuthenticateDevice'].includes(event.triggerSource)) {
         event.response = {
-            "claimsOverrideDetails": {
-                "claimsToAddOrOverride": {
+            claimsOverrideDetails: {
+                claimsToAddOrOverride: {
                     "https://hasura.io/jwt/claims": JSON.stringify({
-                        "x-hasura-allowed-roles": ["user", "admin"],
+                        "x-hasura-allowed-roles": ["user"],
                         "x-hasura-default-role": "user",
                         "x-hasura-user-id": event.request.userAttributes.sub,
                         "x-hasura-role": "user"
@@ -36,7 +36,7 @@ exports.handler = async (event, context) => {
                 }
             }
         };
-        return context.done(null, event);
+        return event;
     }
     else if (event.triggerSource === "PreSignUp_SignUp") {
         //check if the username exists in current cognito pool or not
@@ -57,7 +57,7 @@ exports.handler = async (event, context) => {
 
         if (usernameSearch.Users.length === 0 && emailSearch.Users.length === 0) {
             // event.response.autoConfirmUser = true;
-            return context.done(null, event);
+            return event;
         }
         else {
             return false;
@@ -98,21 +98,21 @@ exports.handler = async (event, context) => {
         await new aws.SES({ region: 'us-east-1' }).sendEmail({
             Destination: { ToAddresses: ['chris@place4pals.com'] },
             Message: {
-                Subject: { Data: `place4pals event: ${event.request.userAttributes['custom:username']} just signed up` },
+                Subject: { Data: `place4pals event: ${event.request.userAttributes['custom:username']} (${event.request.userAttributes['email']}) just signed up` },
                 Body: {
-                    Html: { Data: formatEmailBody(`hey admin,<p>${event.request.userAttributes['custom:username']} just signed up!<p>thanks,<br>place4pals`, event.request.userAttributes['email']) }
+                    Html: { Data: formatEmailBody(`hey admin,<p>${event.request.userAttributes['custom:username']} (${event.request.userAttributes['email']}) just signed up!<p>thanks,<br>place4pals`, event.request.userAttributes['email']) }
                 }
             },
             Source: 'place4pals <noreply@place4pals.com>',
             ReplyToAddresses: ['place4pals <noreply@place4pals.com>']
         }).promise();
 
-        return context.done(null, event);
+        return event;
     }
     else if (event.triggerSource === 'CustomMessage_SignUp') {
         event.response.emailSubject = `confirm your registration, ${event.request.userAttributes['custom:username']}!`;
         event.response.emailMessage = formatEmailBody(`hey!<p><a href="https://lambda.place4pals.com/public/confirm?username=${event.userName}&code=${event.request.codeParameter}&email=${event.request.userAttributes.email}">click this link to complete your registration.</a><p>thanks,<br>place4pals<div style="display:none"><a>${event.request.codeParameter}</a><a>${event.request.codeParameter}</a></div>`, event.request.userAttributes.email);
-        return context.done(null, event);
+        return event;
     }
     else if (event.triggerSource === 'CustomMessage_UpdateUserAttribute') {
         let pool = new Pool(poolConfig);
@@ -121,13 +121,13 @@ exports.handler = async (event, context) => {
 
         event.response.emailSubject = `confirm your new email address, ${event.request.userAttributes['custom:username']}!`;
         event.response.emailMessage = formatEmailBody(`hey!<p><a href="https://lambda.place4pals.com/public/verify?username=${event.userName}&code=${event.request.codeParameter}">click this link to confirm your new email address.</a><p>thanks,<br>place4pals<div style="display:none"><a>${event.request.codeParameter}</a><a>${event.request.codeParameter}</a></div>`, event.request.userAttributes.email);
-        return context.done(null, event);
+        return event;
     }
     else if (event.triggerSource === 'CustomMessage_ForgotPassword') {
         event.response.emailSubject = `reset your password, ${event.request.userAttributes['preferred_username']}`;
         event.response.emailMessage = formatEmailBody(`hey there, ${event.request.userAttributes['preferred_username']}!<p>we received a request to reset your password.</p><p><a href="https://app.p4p.io/set?email=${event.request.userAttributes.email}&code=${event.request.codeParameter}">click this link to set your new password.</a><p>if you did not request this, you can ignore this email.</p><p>thanks,<br>place4pals<div style="display:none"><a>${event.request.codeParameter}</a><a>${event.request.codeParameter}</a></div>`, event.request.userAttributes['email']);
 
-        return context.done(null, event);
+        return event;
     }
     else if (event.triggerSource === 'PostConfirmation_ConfirmForgotPassword') {
         //send email letting user know someone reset their password
@@ -142,7 +142,7 @@ exports.handler = async (event, context) => {
             Source: 'place4pals <noreply@place4pals.com>',
             ReplyToAddresses: ['place4pals <noreply@place4pals.com>']
         }).promise();
-        return context.done(null, event);
+        return event;
     }
 
     if (event.path.startsWith('/public')) {
@@ -211,8 +211,8 @@ exports.handler = async (event, context) => {
             const pool = new Pool(poolConfig);
             if (event.body.event.data.new) {
                 const payload = event.body.event.data.new;
-                const commentFrom = (await pool.query('SELECT id, username FROM users WHERE id=$1', [payload.user_id])).rows[0];
-                const commentTo = (await pool.query('SELECT id, username, push_token, email FROM posts JOIN users ON posts.user_id=users.id WHERE posts.id=$1', [payload.post_id])).rows[0];
+                const commentFrom = (await pool.query('SELECT users.id, username FROM users WHERE id=$1', [payload.user_id])).rows[0];
+                const commentTo = (await pool.query('SELECT users.id, username, push_token, email FROM posts JOIN users ON posts.user_id=users.id WHERE posts.id=$1', [payload.post_id])).rows[0];
                 if (commentFrom.id !== commentTo.id) {
                     if (commentTo.push_token) {
                         let expo = new Expo();
@@ -221,7 +221,7 @@ exports.handler = async (event, context) => {
                             // sound: 'default',
                             title: `${commentFrom.username} commented on your post`,
                             body: `${payload.content}`,
-                            data: {},
+                            data: { url: `p4p://posts/${compressUuid(payload.post_id)}` },
                         }]);
                     }
                     if (commentTo.email) {
@@ -230,7 +230,7 @@ exports.handler = async (event, context) => {
                             Message: {
                                 Subject: { Data: `${commentFrom.username} commented on your post` },
                                 Body: {
-                                    Html: { Data: formatEmailBody(`hey ${commentTo.username}!<p>${commentFrom.username} commented on your post: "${payload.content}".<p>thanks,<br>place4pals`, commentTo.email) }
+                                    Html: { Data: formatEmailBody(`hey ${commentTo.username}!<p><a href="https://app.place4pals.com/users/${compressUuid(commentFrom.id)}">${commentFrom.username}</a> commented on your <a href="https://app.place4pals.com/posts/${compressUuid(payload.post_id)}">post</a>:<div style="padding: 10px;margin:10px;background-color:#ffffff99;border-radius:10px;">${payload.content}</div><p>thanks,<br>place4pals`, commentTo.email) }
                                 }
                             },
                             Source: 'place4pals <noreply@place4pals.com>',
