@@ -87,7 +87,7 @@ exports.handler = async (event) => {
             Message: {
                 Subject: { Data: `welcome to place4pals, ${event.request.userAttributes['custom:username']}!` },
                 Body: {
-                    Html: { Data: formatEmailBody(`hey there, ${event.request.userAttributes['custom:username']}!<p><a href="https://app.p4p.io/login?email=${event.request.userAttributes.email}">click this link to login.</a><p>thanks,<br>place4pals`, event.request.userAttributes['email']) }
+                    Html: { Data: formatEmailBody(`hey there, ${event.request.userAttributes['custom:username']}!<p><a href="https://p4p.io/login?email=${event.request.userAttributes.email}">click this link to login.</a><p>thanks,<br>place4pals`, event.request.userAttributes['email']) }
                 }
             },
             Source: 'place4pals <noreply@place4pals.com>',
@@ -125,7 +125,7 @@ exports.handler = async (event) => {
     }
     else if (event.triggerSource === 'CustomMessage_ForgotPassword') {
         event.response.emailSubject = `reset your password, ${event.request.userAttributes['preferred_username']}`;
-        event.response.emailMessage = formatEmailBody(`hey there, ${event.request.userAttributes['preferred_username']}!<p>we received a request to reset your password.</p><p><a href="https://app.p4p.io/set?email=${event.request.userAttributes.email}&code=${event.request.codeParameter}">click this link to set your new password.</a><p>if you did not request this, you can ignore this email.</p><p>thanks,<br>place4pals<div style="display:none"><a>${event.request.codeParameter}</a><a>${event.request.codeParameter}</a></div>`, event.request.userAttributes['email']);
+        event.response.emailMessage = formatEmailBody(`hey there, ${event.request.userAttributes['preferred_username']}!<p>we received a request to reset your password.</p><p><a href="https://p4p.io/set?email=${event.request.userAttributes.email}&code=${event.request.codeParameter}">click this link to set your new password.</a><p>if you did not request this, you can ignore this email.</p><p>thanks,<br>place4pals<div style="display:none"><a>${event.request.codeParameter}</a><a>${event.request.codeParameter}</a></div>`, event.request.userAttributes['email']);
 
         return event;
     }
@@ -135,7 +135,7 @@ exports.handler = async (event) => {
             Destination: { ToAddresses: [event.request.userAttributes['email']] },
             Message: {
                 Body: {
-                    Html: { Data: formatEmailBody(`hey there, ${event.request.userAttributes['custom:username']},<p>you've successfully changed your password! if you did not do this, we highly recommend changing your password immediately.</p><p><a href="https://app.p4p.io/reset?email=${event.request.userAttributes.email}">click this link to change your password again.</a><p>otherwise, you can ignore this email.</p><p>thanks,<br>place4pals`, event.request.userAttributes['email']) }
+                    Html: { Data: formatEmailBody(`hey there, ${event.request.userAttributes['custom:username']},<p>you've successfully changed your password! if you did not do this, we highly recommend changing your password immediately.</p><p><a href="https://p4p.io/reset?email=${event.request.userAttributes.email}">click this link to change your password again.</a><p>otherwise, you can ignore this email.</p><p>thanks,<br>place4pals`, event.request.userAttributes['email']) }
                 },
                 Subject: { Data: `alert: you changed your password, ${event.request.userAttributes['custom:username']}` }
             },
@@ -149,7 +149,7 @@ exports.handler = async (event) => {
         if (event.path.endsWith('/reset')) {
             const cisp = new aws.CognitoIdentityServiceProvider();
             await cisp.confirmForgotPassword({ ClientId: process.env.clientId, ConfirmationCode: event.queryStringParameters.code, Password: event.queryStringParameters.password, Username: event.queryStringParameters.username }).promise();
-            return { statusCode: 302, body: null, headers: { 'Access-Control-Allow-Origin': '*', 'Location': 'https://app.place4pals.com' } };
+            return { statusCode: 302, body: null, headers: { 'Access-Control-Allow-Origin': '*', 'Location': 'https://place4pals.com' } };
         }
         else if (event.path.endsWith('/confirm')) {
             const cisp = new aws.CognitoIdentityServiceProvider();
@@ -164,7 +164,7 @@ exports.handler = async (event) => {
                 body: null,
                 headers: {
                     'Access-Control-Allow-Origin': '*',
-                    'Location': `${event.headers['CloudFront-Is-Mobile-Viewer']==='true' ? `p4p://` : `https://app.place4pals.com/`}login?email=${event.queryStringParameters.email}`
+                    'Location': `${event.headers['CloudFront-Is-Mobile-Viewer']==='true' ? `p4p://` : `https://place4pals.com/`}login?email=${event.queryStringParameters.email}`
                 }
             };
         }
@@ -185,7 +185,7 @@ exports.handler = async (event) => {
                         Username: event.queryStringParameters.username
 
                     }).promise();
-                    return { statusCode: 302, body: null, headers: { 'Access-Control-Allow-Origin': '*', 'Location': `https://app.place4pals.com` } };
+                    return { statusCode: 302, body: null, headers: { 'Access-Control-Allow-Origin': '*', 'Location': `https://place4pals.com` } };
                 }
                 catch (err) {
                     return { statusCode: 200, body: JSON.stringify(err), headers: { 'Access-Control-Allow-Origin': '*' } };
@@ -230,7 +230,8 @@ exports.handler = async (event) => {
                             Message: {
                                 Subject: { Data: `${commentFrom.username} commented on your post` },
                                 Body: {
-                                    Html: { Data: formatEmailBody(`hey ${commentTo.username}!<p><a href="https://app.place4pals.com/users/${compressUuid(commentFrom.id)}">${commentFrom.username}</a> commented on your <a href="https://app.place4pals.com/posts/${compressUuid(payload.post_id)}">post</a>:<div style="padding: 10px;margin:10px;background-color:#ffffff99;border-radius:10px;">${payload.content}</div><p>thanks,<br>place4pals`, commentTo.email) }
+                                    Html: { Data: formatEmailBody(`hey ${commentTo.username}!<p><a href="https://
+                                    place4pals.com/users/${compressUuid(commentFrom.id)}">${commentFrom.username}</a> commented on your <a href="https://place4pals.com/posts/${compressUuid(payload.post_id)}">post</a>:<div style="padding: 10px;margin:10px;background-color:#ffffff99;border-radius:10px;">${payload.content}</div><p>thanks,<br>place4pals`, commentTo.email) }
                                 }
                             },
                             Source: 'place4pals <noreply@place4pals.com>',
@@ -253,7 +254,7 @@ exports.handler = async (event) => {
             Message: {
                 Subject: { Data: `Welcome to place4pals!` },
                 Body: {
-                    Html: { Data: formatEmailBody(`hey!<p><a href="https://app.p4p.io/login">click this link to login.</a><p>thanks,<br>place4pals`, 'chris@productabot.com') }
+                    Html: { Data: formatEmailBody(`hey!<p><a href="https://p4p.io/login">click this link to login.</a><p>thanks,<br>place4pals`, 'chris@productabot.com') }
                 }
             },
             Source: 'place4pals <noreply@place4pals.com>',
@@ -266,6 +267,6 @@ exports.handler = async (event) => {
         let pool = new Pool(poolConfig);
         let response = await pool.query('SELECT id FROM users WHERE username=$1', [hostSplit[0]]);
         let redirectDomain = event.headers.Host.split('.').slice(1).join('.');
-        return { statusCode: 302, body: null, headers: { 'Access-Control-Allow-Origin': '*', 'Location': response.rows.length > 0 ? `https://app.${redirectDomain}/users/${compressUuid(response.rows[0].id)}` : `https://app.${redirectDomain}` } };
+        return { statusCode: 302, body: null, headers: { 'Access-Control-Allow-Origin': '*', 'Location': response.rows.length > 0 ? `https://${redirectDomain}/users/${compressUuid(response.rows[0].id)}` : `https://${redirectDomain}` } };
     }
 };
