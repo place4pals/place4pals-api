@@ -76,7 +76,7 @@ export const formatEmailBody = (body, email) => {
                         <a style="display:flex;flex-direction:row;justify-content:flex-start;align-items:center;"
                            href="https://place4pals.com/"
                            target="_blank">
-                            <img src="https://place4pals.com/logo.png"
+                            <img src="https://place4pals.com/favicon_light.png"
                                  alt="place4pals"
                                  border="0"
                                  height="50"

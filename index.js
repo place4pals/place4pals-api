@@ -5,12 +5,10 @@ import { formatEmailBody } from './email.js';
 import { Expo } from 'expo-server-sdk';
 import { randomUUID } from 'crypto';
 
-const { Pool } = pg;
-const connectionString = process.env.connectionString;
-
-const compressUuid = (uuid) => {
-    return Buffer.from(uuid.replace(/-/g, ''), 'hex').toString('base64').replace('==', '').replace(/\+/g, '-').replace(/\//g, '_');
-};
+const cognito = new CognitoIdentityProvider();
+const ses = new SES({ region: 'us-east-1' });
+const pool = new pg.Pool({ min: 0, max: 1, idle: 1000, connectionString: process.env.connectionString });
+const compressUuid = (uuid) => { return Buffer.from(uuid.replace(/-/g, ''), 'hex').toString('base64').replace('==', '').replace(/\+/g, '-').replace(/\//g, '_'); };
 
 export const handler = async (event) => {
     console.log("place4pals init", event);
@@ -33,15 +31,14 @@ export const handler = async (event) => {
     }
     else if (event.triggerSource === "PreSignUp_SignUp") {
         //check if the username exists in current cognito pool or not
-        const cipc = new CognitoIdentityProvider();
-        const usernameSearch = await cipc.listUsers({
+        const usernameSearch = await cognito.listUsers({
             UserPoolId: process.env.userPoolId,
             AttributesToGet: ['email'],
             Filter: `preferred_username = "${event.request.userAttributes['custom:username']}"`,
             Limit: 1
         });
 
-        let emailSearch = await cipc.listUsers({
+        const emailSearch = await cognito.listUsers({
             UserPoolId: process.env.userPoolId,
             AttributesToGet: ['email'],
             Filter: `email = "${event.request.userAttributes['email']}"`,
@@ -57,12 +54,10 @@ export const handler = async (event) => {
         }
     }
     else if (event.triggerSource === 'PostConfirmation_ConfirmSignUp') {
-        let pool = new Pool({ connectionString });
         await pool.query('INSERT INTO users(id, email, username, user_type) VALUES($1, $2, $3, $4) RETURNING *', [event.request.userAttributes['sub'], event.request.userAttributes['email'], event.request.userAttributes['custom:username'], event.request.userAttributes['custom:userType']]);
         pool.end();
 
-        const cipc = new CognitoIdentityProvider();
-        await cipc.adminUpdateUserAttributes({
+        await cognito.adminUpdateUserAttributes({
             UserAttributes: [{
                 Name: 'preferred_username',
                 Value: event.request.userAttributes['custom:username']
@@ -75,7 +70,7 @@ export const handler = async (event) => {
         });
 
         //send welcome email
-        await new SES({ region: 'us-east-1' }).sendEmail({
+        await ses.sendEmail({
             Destination: { ToAddresses: [event.request.userAttributes['email']] },
             Message: {
                 Subject: { Data: `welcome to place4pals, ${event.request.userAttributes['custom:username']}!` },
@@ -88,7 +83,7 @@ export const handler = async (event) => {
         });
 
         //send admin user signup message
-        await new SES({ region: 'us-east-1' }).sendEmail({
+        await ses.sendEmail({
             Destination: { ToAddresses: ['chris@place4pals.com'] },
             Message: {
                 Subject: { Data: `place4pals event: ${event.request.userAttributes['custom:username']} (${event.request.userAttributes['email']}) just signed up` },
@@ -108,8 +103,7 @@ export const handler = async (event) => {
         return event;
     }
     else if (event.triggerSource === 'CustomMessage_UpdateUserAttribute') {
-        let pool = new Pool({ connectionString });
-        let code = randomUUID();
+        const code = randomUUID();
         await pool.query(`UPDATE users SET code='${code}' WHERE id='${event.userName}' `);
 
         event.response.emailSubject = `confirm your new email address, ${event.request.userAttributes['custom:username']}!`;
@@ -124,7 +118,7 @@ export const handler = async (event) => {
     }
     else if (event.triggerSource === 'PostConfirmation_ConfirmForgotPassword') {
         //send email letting user know someone reset their password
-        await new SES({ region: 'us-east-1' }).sendEmail({
+        await ses.sendEmail({
             Destination: { ToAddresses: [event.request.userAttributes['email']] },
             Message: {
                 Body: {
@@ -140,14 +134,12 @@ export const handler = async (event) => {
 
     if (event.path.startsWith('/public')) {
         if (event.path.endsWith('/reset')) {
-            const cipc = new CognitoIdentityProvider();
-            await cipc.confirmForgotPassword({ ClientId: process.env.clientId, ConfirmationCode: event.queryStringParameters.code, Password: event.queryStringParameters.password, Username: event.queryStringParameters.username });
+            await cognito.confirmForgotPassword({ ClientId: process.env.clientId, ConfirmationCode: event.queryStringParameters.code, Password: event.queryStringParameters.password, Username: event.queryStringParameters.username });
             return { statusCode: 302, body: null, headers: { 'Access-Control-Allow-Origin': '*', 'Location': 'https://place4pals.com' } };
         }
         else if (event.path.endsWith('/confirm')) {
-            const cipc = new CognitoIdentityProvider();
             try {
-                await cipc.confirmSignUp({ ClientId: process.env.clientId, ConfirmationCode: event.queryStringParameters.code, Username: event.queryStringParameters.username });
+                await cognito.confirmSignUp({ ClientId: process.env.clientId, ConfirmationCode: event.queryStringParameters.code, Username: event.queryStringParameters.username });
             }
             catch (err) {
                 console.log(err);
@@ -162,17 +154,14 @@ export const handler = async (event) => {
             };
         }
         else if (event.path.endsWith('/verify')) {
-            const cipc = new CognitoIdentityProvider();
-
-            let pool = new Pool({ connectionString });
-            let response = await pool.query(`SELECT code FROM users WHERE id='${event.queryStringParameters.username}' `);
+            const response = await pool.query(`SELECT code FROM users WHERE id='${event.queryStringParameters.username}' `);
 
             if (response.rows[0].code !== event.queryStringParameters.code) {
                 return { statusCode: 200, body: "sorry, the code you provided to verify your email address is invalid", headers: { 'Access-Control-Allow-Origin': '*' } };
             }
             else {
                 try {
-                    await cipc.adminUpdateUserAttributes({
+                    await cognito.adminUpdateUserAttributes({
                         UserAttributes: [{ Name: 'email_verified', Value: 'true' }],
                         UserPoolId: process.env.userPoolId,
                         Username: event.queryStringParameters.username
@@ -193,7 +182,7 @@ export const handler = async (event) => {
             };
         }
         else if (event.path.endsWith('/internetTest')) {
-            let response = await (await fetch('https://api.htic.io/test')).text();
+            const response = await (await fetch('https://api.htic.io/test')).text();
             return {
                 statusCode: 200,
                 body: JSON.stringify(response),
@@ -201,14 +190,13 @@ export const handler = async (event) => {
             };
         }
         else if (event.path.endsWith('/hasura')) {
-            const pool = new Pool({ connectionString });
             if (event.body.event.data.new) {
                 const payload = event.body.event.data.new;
                 const commentFrom = (await pool.query('SELECT users.id, username FROM users WHERE id=$1', [payload.user_id])).rows[0];
                 const commentTo = (await pool.query('SELECT users.id, username, push_token, email FROM posts JOIN users ON posts.user_id=users.id WHERE posts.id=$1', [payload.post_id])).rows[0];
                 if (commentFrom.id !== commentTo.id) {
                     if (commentTo.push_token) {
-                        let expo = new Expo();
+                        const expo = new Expo();
                         await expo.sendPushNotificationsAsync([{
                             to: commentTo.push_token,
                             // sound: 'default',
@@ -218,7 +206,7 @@ export const handler = async (event) => {
                         }]);
                     }
                     if (commentTo.email) {
-                        await new SES({ region: 'us-east-1' }).sendEmail({
+                        await ses.sendEmail({
                             Destination: { ToAddresses: [commentTo.email] },
                             Message: {
                                 Subject: { Data: `${commentFrom.username} commented on your post` },
@@ -242,7 +230,7 @@ export const handler = async (event) => {
     }
     else if (event.path.startsWith('/auth')) {}
     else if (event.path.startsWith('/test')) {
-        await new SES({ region: 'us-east-1' }).sendEmail({
+        await ses.sendEmail({
             Destination: { ToAddresses: ['chris@productabot.com'] },
             Message: {
                 Subject: { Data: `Welcome to place4pals!` },
@@ -256,10 +244,8 @@ export const handler = async (event) => {
     }
     else {
         //we're redirecting to a user profile based on a given username
-        let hostSplit = event.headers.Host.split('.');
-        let pool = new Pool({ connectionString });
-        let response = await pool.query('SELECT id FROM users WHERE username=$1', [hostSplit[0]]);
-        let redirectDomain = event.headers.Host.split('.').slice(1).join('.');
+        const response = await pool.query('SELECT id FROM users WHERE username=$1', [event.headers.Host.split('.')[0]]);
+        const redirectDomain = event.headers.Host.split('.').slice(1).join('.');
         return { statusCode: 302, body: null, headers: { 'Access-Control-Allow-Origin': '*', 'Location': response.rows.length > 0 ? `https://${redirectDomain}/users/${compressUuid(response.rows[0].id)}` : `https://${redirectDomain}` } };
     }
 };
