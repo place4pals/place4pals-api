@@ -1,25 +1,18 @@
-const aws = require('aws-sdk');
-const { Pool } = require('pg');
-const poolConfig = {
-    user: process.env.user,
-    host: process.env.host,
-    database: process.env.database,
-    password: process.env.password,
-    port: process.env.port
-};
-const { formatEmailBody } = require('./email.js');
-const { Expo } = require('expo-server-sdk');
-const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+import { CognitoIdentityProvider } from '@aws-sdk/client-cognito-identity-provider';
+import { SES } from '@aws-sdk/client-ses';
+import pg from 'pg';
+import { formatEmailBody } from './email.js';
+import { Expo } from 'expo-server-sdk';
+import { randomUUID } from 'crypto';
 
-function compressUuid(uuid) {
+const { Pool } = pg;
+const connectionString = process.env.connectionString;
+
+const compressUuid = (uuid) => {
     return Buffer.from(uuid.replace(/-/g, ''), 'hex').toString('base64').replace('==', '').replace(/\+/g, '-').replace(/\//g, '_');
-}
+};
 
-function expandUuid(base64) {
-    return Buffer.from(base64.replace(/-/g, '+').replace(/_/g, '/') + '==', 'base64').toString('hex');
-}
-
-exports.handler = async (event) => {
+export const handler = async (event) => {
     console.log("place4pals init", event);
     event.body ? event.body = JSON.parse(event.body) : null;
 
@@ -40,20 +33,20 @@ exports.handler = async (event) => {
     }
     else if (event.triggerSource === "PreSignUp_SignUp") {
         //check if the username exists in current cognito pool or not
-        const cisp = new aws.CognitoIdentityServiceProvider();
-        const usernameSearch = await cisp.listUsers({
+        const cipc = new CognitoIdentityProvider();
+        const usernameSearch = await cipc.listUsers({
             UserPoolId: process.env.userPoolId,
             AttributesToGet: ['email'],
             Filter: `preferred_username = "${event.request.userAttributes['custom:username']}"`,
-            Limit: '1'
-        }).promise();
+            Limit: 1
+        });
 
-        let emailSearch = await cisp.listUsers({
+        let emailSearch = await cipc.listUsers({
             UserPoolId: process.env.userPoolId,
             AttributesToGet: ['email'],
             Filter: `email = "${event.request.userAttributes['email']}"`,
-            Limit: '1'
-        }).promise();
+            Limit: 1
+        });
 
         if (usernameSearch.Users.length === 0 && emailSearch.Users.length === 0) {
             // event.response.autoConfirmUser = true;
@@ -64,12 +57,12 @@ exports.handler = async (event) => {
         }
     }
     else if (event.triggerSource === 'PostConfirmation_ConfirmSignUp') {
-        let pool = new Pool(poolConfig);
+        let pool = new Pool({ connectionString });
         await pool.query('INSERT INTO users(id, email, username, user_type) VALUES($1, $2, $3, $4) RETURNING *', [event.request.userAttributes['sub'], event.request.userAttributes['email'], event.request.userAttributes['custom:username'], event.request.userAttributes['custom:userType']]);
         pool.end();
 
-        const cisp = new aws.CognitoIdentityServiceProvider();
-        await cisp.adminUpdateUserAttributes({
+        const cipc = new CognitoIdentityProvider();
+        await cipc.adminUpdateUserAttributes({
             UserAttributes: [{
                 Name: 'preferred_username',
                 Value: event.request.userAttributes['custom:username']
@@ -79,10 +72,10 @@ exports.handler = async (event) => {
             }],
             UserPoolId: process.env.userPoolId,
             Username: event.userName
-        }).promise();
+        });
 
         //send welcome email
-        await new aws.SES({ region: 'us-east-1' }).sendEmail({
+        await new SES({ region: 'us-east-1' }).sendEmail({
             Destination: { ToAddresses: [event.request.userAttributes['email']] },
             Message: {
                 Subject: { Data: `welcome to place4pals, ${event.request.userAttributes['custom:username']}!` },
@@ -92,10 +85,10 @@ exports.handler = async (event) => {
             },
             Source: 'place4pals <noreply@place4pals.com>',
             ReplyToAddresses: ['place4pals <noreply@place4pals.com>']
-        }).promise();
+        });
 
         //send admin user signup message
-        await new aws.SES({ region: 'us-east-1' }).sendEmail({
+        await new SES({ region: 'us-east-1' }).sendEmail({
             Destination: { ToAddresses: ['chris@place4pals.com'] },
             Message: {
                 Subject: { Data: `place4pals event: ${event.request.userAttributes['custom:username']} (${event.request.userAttributes['email']}) just signed up` },
@@ -105,7 +98,7 @@ exports.handler = async (event) => {
             },
             Source: 'place4pals <noreply@place4pals.com>',
             ReplyToAddresses: ['place4pals <noreply@place4pals.com>']
-        }).promise();
+        });
 
         return event;
     }
@@ -115,8 +108,8 @@ exports.handler = async (event) => {
         return event;
     }
     else if (event.triggerSource === 'CustomMessage_UpdateUserAttribute') {
-        let pool = new Pool(poolConfig);
-        let code = aws.util.uuid.v4();
+        let pool = new Pool({ connectionString });
+        let code = randomUUID();
         await pool.query(`UPDATE users SET code='${code}' WHERE id='${event.userName}' `);
 
         event.response.emailSubject = `confirm your new email address, ${event.request.userAttributes['custom:username']}!`;
@@ -131,7 +124,7 @@ exports.handler = async (event) => {
     }
     else if (event.triggerSource === 'PostConfirmation_ConfirmForgotPassword') {
         //send email letting user know someone reset their password
-        await new aws.SES({ region: 'us-east-1' }).sendEmail({
+        await new SES({ region: 'us-east-1' }).sendEmail({
             Destination: { ToAddresses: [event.request.userAttributes['email']] },
             Message: {
                 Body: {
@@ -141,20 +134,20 @@ exports.handler = async (event) => {
             },
             Source: 'place4pals <noreply@place4pals.com>',
             ReplyToAddresses: ['place4pals <noreply@place4pals.com>']
-        }).promise();
+        });
         return event;
     }
 
     if (event.path.startsWith('/public')) {
         if (event.path.endsWith('/reset')) {
-            const cisp = new aws.CognitoIdentityServiceProvider();
-            await cisp.confirmForgotPassword({ ClientId: process.env.clientId, ConfirmationCode: event.queryStringParameters.code, Password: event.queryStringParameters.password, Username: event.queryStringParameters.username }).promise();
+            const cipc = new CognitoIdentityProvider();
+            await cipc.confirmForgotPassword({ ClientId: process.env.clientId, ConfirmationCode: event.queryStringParameters.code, Password: event.queryStringParameters.password, Username: event.queryStringParameters.username });
             return { statusCode: 302, body: null, headers: { 'Access-Control-Allow-Origin': '*', 'Location': 'https://place4pals.com' } };
         }
         else if (event.path.endsWith('/confirm')) {
-            const cisp = new aws.CognitoIdentityServiceProvider();
+            const cipc = new CognitoIdentityProvider();
             try {
-                await cisp.confirmSignUp({ ClientId: process.env.clientId, ConfirmationCode: event.queryStringParameters.code, Username: event.queryStringParameters.username }).promise();
+                await cipc.confirmSignUp({ ClientId: process.env.clientId, ConfirmationCode: event.queryStringParameters.code, Username: event.queryStringParameters.username });
             }
             catch (err) {
                 console.log(err);
@@ -169,9 +162,9 @@ exports.handler = async (event) => {
             };
         }
         else if (event.path.endsWith('/verify')) {
-            const cisp = new aws.CognitoIdentityServiceProvider();
+            const cipc = new CognitoIdentityProvider();
 
-            let pool = new Pool(poolConfig);
+            let pool = new Pool({ connectionString });
             let response = await pool.query(`SELECT code FROM users WHERE id='${event.queryStringParameters.username}' `);
 
             if (response.rows[0].code !== event.queryStringParameters.code) {
@@ -179,12 +172,12 @@ exports.handler = async (event) => {
             }
             else {
                 try {
-                    await cisp.adminUpdateUserAttributes({
+                    await cipc.adminUpdateUserAttributes({
                         UserAttributes: [{ Name: 'email_verified', Value: 'true' }],
                         UserPoolId: process.env.userPoolId,
                         Username: event.queryStringParameters.username
 
-                    }).promise();
+                    });
                     return { statusCode: 302, body: null, headers: { 'Access-Control-Allow-Origin': '*', 'Location': `https://place4pals.com` } };
                 }
                 catch (err) {
@@ -208,7 +201,7 @@ exports.handler = async (event) => {
             };
         }
         else if (event.path.endsWith('/hasura')) {
-            const pool = new Pool(poolConfig);
+            const pool = new Pool({ connectionString });
             if (event.body.event.data.new) {
                 const payload = event.body.event.data.new;
                 const commentFrom = (await pool.query('SELECT users.id, username FROM users WHERE id=$1', [payload.user_id])).rows[0];
@@ -225,7 +218,7 @@ exports.handler = async (event) => {
                         }]);
                     }
                     if (commentTo.email) {
-                        await new aws.SES({ region: 'us-east-1' }).sendEmail({
+                        await new SES({ region: 'us-east-1' }).sendEmail({
                             Destination: { ToAddresses: [commentTo.email] },
                             Message: {
                                 Subject: { Data: `${commentFrom.username} commented on your post` },
@@ -236,7 +229,7 @@ exports.handler = async (event) => {
                             },
                             Source: 'place4pals <noreply@place4pals.com>',
                             ReplyToAddresses: ['place4pals <noreply@place4pals.com>']
-                        }).promise();
+                        });
                     }
                 }
             }
@@ -249,7 +242,7 @@ exports.handler = async (event) => {
     }
     else if (event.path.startsWith('/auth')) {}
     else if (event.path.startsWith('/test')) {
-        await new aws.SES({ region: 'us-east-1' }).sendEmail({
+        await new SES({ region: 'us-east-1' }).sendEmail({
             Destination: { ToAddresses: ['chris@productabot.com'] },
             Message: {
                 Subject: { Data: `Welcome to place4pals!` },
@@ -259,12 +252,12 @@ exports.handler = async (event) => {
             },
             Source: 'place4pals <noreply@place4pals.com>',
             ReplyToAddresses: ['place4pals <noreply@place4pals.com>']
-        }).promise();
+        });
     }
     else {
         //we're redirecting to a user profile based on a given username
         let hostSplit = event.headers.Host.split('.');
-        let pool = new Pool(poolConfig);
+        let pool = new Pool({ connectionString });
         let response = await pool.query('SELECT id FROM users WHERE username=$1', [hostSplit[0]]);
         let redirectDomain = event.headers.Host.split('.').slice(1).join('.');
         return { statusCode: 302, body: null, headers: { 'Access-Control-Allow-Origin': '*', 'Location': response.rows.length > 0 ? `https://${redirectDomain}/users/${compressUuid(response.rows[0].id)}` : `https://${redirectDomain}` } };
