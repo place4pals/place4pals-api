@@ -1,4 +1,4 @@
-export const formatEmailBody = (body, email) => {
+export const formatEmail = (body, email) => {
     return `<!DOCTYPE html>
 <html lang="en"
       xmlns="http://www.w3.org/1999/xhtml"

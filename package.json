@@ -4,13 +4,13 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "zip -r ~/lambda.zip * && aws lambda update-function-code --function-name place4pals --zip-file \"fileb://~/lambda.zip\""
+    "build": "zip -r lambda.zip * && aws --profile place4pals lambda update-function-code --function-name place4pals --zip-file \"fileb://lambda.zip\" > /dev/null && rm -rf lambda.zip"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "expo-server-sdk": "^3.6.0",
-    "pg": "^8.7.1"
+    "expo-server-sdk": "^3.7.0",
+    "pg": "^8.8.0"
   },
   "type": "module"
 }
