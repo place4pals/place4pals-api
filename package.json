@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "zip -r lambda.zip * && aws --profile place4pals lambda update-function-code --function-name place4pals --zip-file \"fileb://lambda.zip\" > /dev/null && rm -rf lambda.zip"
+    "build": "tsc | true && cp package.json dist/package.json && cd dist && npm install --omit=dev && zip -r lambda.zip * > /dev/null && aws --profile place4pals lambda update-function-code --function-name place4pals --zip-file \"fileb://lambda.zip\" > /dev/null && rm -rf lambda.zip && cd .. && rm -rf dist",
+    "tsc": "tsc -noEmit"
   },
   "author": "",
   "license": "ISC",
@@ -12,5 +13,10 @@
     "expo-server-sdk": "^3.7.0",
     "pg": "^8.8.0"
   },
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.111",
+    "@types/node": "^18.14.6",
+    "@types/pg": "^8.6.6"
+  }
 }
