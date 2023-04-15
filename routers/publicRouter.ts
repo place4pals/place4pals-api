@@ -5,6 +5,9 @@ import { unsubscribe } from "../routes/public/unsubscribe";
 import { internetTest } from "../routes/public/internetTest";
 import { test } from "../routes/public/test";
 import { dynamoTest } from "../routes/public/dynamoTest";
+import { posts } from "../routes/auth/posts";
+import { users } from "../routes/auth/users";
+import { pools } from "../routes/auth/pools";
 
 export const publicRouter = async ({ event, pool }) => {
     if (event.path.endsWith('/reset')) {
@@ -27,5 +30,14 @@ export const publicRouter = async ({ event, pool }) => {
     }
     else if (event.path.endsWith('/dynamoTest')) {
         return dynamoTest({ event, pool });
+    }
+    else if (event.path.endsWith('/posts')) {
+        return posts({ event });
+    }
+    else if (event.path.endsWith('/users')) {
+        return users({ event });
+    }
+    else if (event.path.endsWith('/pools')) {
+        return pools({ event });
     }
 }
