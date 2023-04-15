@@ -1,7 +1,7 @@
 import KSUID from "ksuid";
 
 export const generateId = () => {
-  return KSUID.randomSync();
+  return KSUID.randomSync().string;
 };
 export const getId = (string) => {
   return string.split("#")[1];
