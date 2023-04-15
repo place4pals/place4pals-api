@@ -8,8 +8,8 @@ export const posts = async ({ event }) => {
     // Grab all posts in the default pool
     const posts = await query(
       event.queryStringParameters?.id
-        ? `SELECT * FROM "place4pals"."all" WHERE "all"='0' AND "id"='post#${event.queryStringParameters.id}'`
-        : `SELECT * FROM "place4pals" WHERE "parent_id"='pool#0' AND begins_with("id",'post#') ORDER BY "id" ASC`,
+        ? `SELECT * FROM "place4pals" WHERE "parent_id"='user' AND "id"='post#${event.queryStringParameters.id}'`
+        : `SELECT * FROM "place4pals"."pool_id" WHERE "pool_id"='pool#0' AND begins_with("id",'post#') ORDER BY "id" ASC`,
       100
     );
     users.push(...posts.map(({ user_id }) => user_id));
@@ -28,7 +28,7 @@ export const posts = async ({ event }) => {
     // Perform joins for all usernames
     const userDictionary = Object.fromEntries(
       (
-        await query(`SELECT "id", "name" FROM "place4pals" WHERE "parent_id"='user#' AND "id" IN (
+        await query(`SELECT "id", "name" FROM "place4pals" WHERE "parent_id"='user' AND "id" IN (
             ${[...new Set(users)].map((user_id) => `'${user_id}'`).join(",")}
             )`)
       ).map(({ id, name }) => [id, name])

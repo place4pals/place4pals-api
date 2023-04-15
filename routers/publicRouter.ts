@@ -8,6 +8,7 @@ import { dynamoTest } from "../routes/public/dynamoTest";
 import { posts } from "../routes/auth/posts";
 import { users } from "../routes/auth/users";
 import { pools } from "../routes/auth/pools";
+import { ksuid } from "../routes/public/ksuid";
 
 export const publicRouter = async ({ event, pool }) => {
     if (event.path.endsWith('/reset')) {
@@ -39,5 +40,8 @@ export const publicRouter = async ({ event, pool }) => {
     }
     else if (event.path.endsWith('/pools')) {
         return pools({ event });
+    }
+    else if (event.path.endsWith('/ksuid')) {
+        return ksuid({ event });
     }
 }
