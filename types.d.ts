@@ -29,5 +29,4 @@ export type apiResponse = APIGatewayProxyResult | any | undefined;
 
 export type cognitoRouterInput = {
   event: cognitoEvent;
-  pool: any;
 };

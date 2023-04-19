@@ -19,7 +19,7 @@ export const posts = async ({ event }) => {
     await Promise.all(
       posts.map(async (post) => {
         const comments = await query(
-          `SELECT * FROM "place4pals" WHERE "parent_id"='${post.id}' AND begins_with("id",'comment#') ORDER BY "id" DESC`
+          `SELECT * FROM "place4pals" WHERE "parent_id"='${post.id}' AND begins_with("id",'comment#') ORDER BY "id" ASC`
         );
         post.comments = comments;
         users.push(...comments.map(({ user_id }) => user_id));
@@ -44,6 +44,7 @@ export const posts = async ({ event }) => {
         id: getId(post.user_id),
         name: userDictionary[post.user_id],
       },
+      typing: Array.from(post.typing ?? []),
       comments: post.comments
         .filter(({ parent_comment_id }) => !parent_comment_id)
         .map((comment) => ({

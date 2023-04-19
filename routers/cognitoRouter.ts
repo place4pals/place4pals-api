@@ -1,4 +1,3 @@
-import { tokenGeneration } from "../routes/cognito/tokenGeneration";
 import { preSignUpSignUp } from "../routes/cognito/preSignUpSignUp";
 import { postConfirmationConfirmSignUp } from "../routes/cognito/postConfirmationConfirmSignUp";
 import { customMessageSignUp } from "../routes/cognito/customMessageSignUp";
@@ -7,26 +6,23 @@ import { customMessageForgotPassword } from "../routes/cognito/customMessageForg
 import { postConfirmationConfirmForgotPassword } from "../routes/cognito/postConfirmationConfirmForgotPassword";
 import { apiResponse, cognitoRouterInput } from "../types";
 
-export const cognitoRouter = async ({ event, pool }: cognitoRouterInput): Promise<apiResponse> => {
-  if (
-    [
-      "TokenGeneration_Authentication",
-      "TokenGeneration_RefreshTokens",
-      "TokenGeneration_AuthenticateDevice",
-    ].includes(event.triggerSource)
-  ) {
-    return tokenGeneration({ event });
-  } else if (event.triggerSource === "PreSignUp_SignUp") {
+export const cognitoRouter = async ({ event }: cognitoRouterInput): Promise<apiResponse> => {
+  if (event.triggerSource === "PreSignUp_SignUp") {
     return preSignUpSignUp({ event });
-  } else if (event.triggerSource === "PostConfirmation_ConfirmSignUp") {
-    return postConfirmationConfirmSignUp({ event, pool });
-  } else if (event.triggerSource === "CustomMessage_SignUp") {
+  }
+  else if (event.triggerSource === "PostConfirmation_ConfirmSignUp") {
+    return postConfirmationConfirmSignUp({ event });
+  }
+  else if (event.triggerSource === "CustomMessage_SignUp") {
     return customMessageSignUp({ event });
-  } else if (event.triggerSource === "CustomMessage_UpdateUserAttribute") {
-    return customMessageUpdateUserAttribute({ event, pool });
-  } else if (event.triggerSource === "CustomMessage_ForgotPassword") {
+  }
+  else if (event.triggerSource === "CustomMessage_UpdateUserAttribute") {
+    return customMessageUpdateUserAttribute({ event });
+  }
+  else if (event.triggerSource === "CustomMessage_ForgotPassword") {
     return customMessageForgotPassword({ event });
-  } else if (event.triggerSource === "PostConfirmation_ConfirmForgotPassword") {
+  }
+  else if (event.triggerSource === "PostConfirmation_ConfirmForgotPassword") {
     return postConfirmationConfirmForgotPassword({ event });
   }
 };
