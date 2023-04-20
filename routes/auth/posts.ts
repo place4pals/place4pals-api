@@ -96,8 +96,8 @@ export const posts = async ({ event }) => {
     };
   }
   else if (event.httpMethod === 'POST') {
-    let mediaId = null;
-    if (event.body.mediaBase64) {
+    let mediaId = '';
+    if (event.body.mediaBase64?.length) {
       mediaId = generateId();
       await s3.putObject({
         Bucket: `p4p-prod-files`,
@@ -125,7 +125,17 @@ export const posts = async ({ event }) => {
     };
   }
   else if (event.httpMethod === 'DELETE') {
+    const [post] = await query(`SELECT "media" FROM "place4pals" WHERE "parent_id"='post' AND "id"='post#${event.body.id}'`);
+    if (post.media) {
+      await s3.deleteObject({
+        Bucket: `p4p-prod-files`,
+        Key: `public/${post.media}`,
+      });
+    }
     await query(`DELETE FROM "place4pals" WHERE "parent_id"='post' AND "id"='post#${event.body.id}'`);
+
+    const comments = await query(`SELECT "id" FROM "place4pals" WHERE "parent_id"='post#${event.body.id}' AND begins_with("id",'comment#')`);
+    await Promise.all(comments.map(comment => query(`DELETE FROM "place4pals" WHERE "parent_id"='post#${event.body.id}' AND "id"='${comment.id}'`)))
 
     return {
       statusCode: 200,
