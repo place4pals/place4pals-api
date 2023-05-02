@@ -37,6 +37,20 @@ export const posts = async ({ event }) => {
       ).map(({ id, name, media }) => [id, { name, media }])
     );
 
+    const recursivelyThreadedComments = (comments, commentId = null) => comments
+      .filter(({ parent_comment_id }) => !commentId ? !parent_comment_id : parent_comment_id === commentId)
+      .map((comment) => ({
+        id: getId(comment.id),
+        date: idToDate(comment.id),
+        content: comment.content,
+        user: {
+          id: getId(comment.user_id),
+          name: userDictionary[comment.user_id].name,
+          media: userDictionary[comment.user_id].media,
+        },
+        comments: recursivelyThreadedComments(comments, comment.id)
+      }));
+
     const response = posts.map((post) => ({
       id: getId(post.id),
       date: idToDate(post.id),
@@ -49,44 +63,7 @@ export const posts = async ({ event }) => {
       },
       typing: Array.from(post.typing ?? []),
       media: post.media,
-      comments: post.comments
-        .filter(({ parent_comment_id }) => !parent_comment_id)
-        .map((comment) => ({
-          id: getId(comment.id),
-          date: idToDate(comment.id),
-          content: comment.content,
-          user: {
-            id: getId(comment.user_id),
-            name: userDictionary[comment.user_id].name,
-            media: userDictionary[comment.user_id].media,
-          },
-          comments: post.comments
-            .filter(({ parent_comment_id }) => comment.id === parent_comment_id)
-            .map((comment) => ({
-              id: getId(comment.id),
-              date: idToDate(comment.id),
-              content: comment.content,
-              user: {
-                id: getId(comment.user_id),
-                name: userDictionary[comment.user_id].name,
-                media: userDictionary[comment.user_id].media,
-              },
-              comments: post.comments
-                .filter(
-                  ({ parent_comment_id }) => comment.id === parent_comment_id
-                )
-                .map((comment) => ({
-                  id: getId(comment.id),
-                  date: idToDate(comment.id),
-                  content: comment.content,
-                  user: {
-                    id: getId(comment.user_id),
-                    name: userDictionary[comment.user_id].name,
-                    media: userDictionary[comment.user_id].media,
-                  },
-                })),
-            })),
-        })),
+      comments: recursivelyThreadedComments(post.comments)
     }));
 
     return {
