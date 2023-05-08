@@ -1,8 +1,8 @@
 export const formatEmail = ({ event, body }) => {
-    return `Hey ${event.request.userAttributes['preferred_username']},
+    return `<p><img width="200" src="https://staging.place4pals.com/small_logo.png"></p>
+    Hey ${event?.request?.userAttributes?.preferred_username ?? 'pal'},
     <p>${body}</p>
     <p>Thanks,
     <br/>place4pals</p>
-    <p><img width="100" src="https://staging.place4pals.com/favicon.png"></p>
     ${event?.request?.codeParameter ? `<div style="display:none"><a>${event.request.codeParameter}</a><a>${event.request.codeParameter}</a></div>` : ''}`;
 };

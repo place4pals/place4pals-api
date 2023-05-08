@@ -1,6 +1,7 @@
 import { cognitoRouter } from "./routers/cognitoRouter";
 import { publicRouter } from "./routers/publicRouter";
 import { authRouter } from "./routers/authRouter";
+import { internalRouter } from "./routers/internalRouter";
 
 import { apiEvent, apiResponse } from "./types";
 
@@ -16,5 +17,8 @@ export const handler = async (event: apiEvent): Promise<apiResponse> => {
   }
   else if (event.path.startsWith("/auth")) {
     return authRouter({ event });
+  }
+  else if (event.path.startsWith("/internal")) {
+    return internalRouter({ event });
   }
 };

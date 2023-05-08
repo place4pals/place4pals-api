@@ -4,8 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "tsc | true && cp package.json dist/package.json && cd dist && npm install --omit=dev && zip -r lambda.zip * > /dev/null && aws --profile place4pals lambda update-function-code --function-name place4pals --zip-file \"fileb://lambda.zip\" > /dev/null && rm -rf lambda.zip && cd .. && rm -rf dist",
-    "tsc": "tsc -noEmit"
+    "tsc": "tsc -noEmit",
+    "build:prod": "tsc | true && cp package.json dist/package.json && cd dist && npm install --omit=dev && zip -r lambda.zip * > /dev/null && aws --profile place4pals lambda update-function-code --function-name place4pals --zip-file \"fileb://lambda.zip\" > /dev/null && rm -rf lambda.zip && cd .. && rm -rf dist",
+    "build:staging": "tsc | true && cp package.json dist/package.json && cd dist && npm install --omit=dev && zip -r lambda.zip * > /dev/null && aws --profile place4pals lambda update-function-code --function-name place4pals-staging --zip-file \"fileb://lambda.zip\" > /dev/null && rm -rf lambda.zip && cd .. && rm -rf dist"
   },
   "author": "",
   "license": "ISC",
