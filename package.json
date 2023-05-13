@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "aws-jwt-verify": "^4.0.0",
     "ksuid": "^3.0.0"
   },
   "type": "module",

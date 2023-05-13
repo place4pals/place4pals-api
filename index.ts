@@ -8,6 +8,8 @@ import { apiEvent, apiResponse } from "./types";
 export const handler = async (event: apiEvent): Promise<apiResponse> => {
   console.log("place4pals-api init", JSON.stringify(event));
   event.body ? (event.body = JSON.parse(event.body)) : null;
+  event.rawPath ? event.path = event.rawPath : null;
+  !event.httpMethod ? event.httpMethod = event.requestContext?.http?.method : null;
 
   if (event.triggerSource) {
     return cognitoRouter({ event });

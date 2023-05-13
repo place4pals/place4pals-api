@@ -6,10 +6,6 @@ export const pools = async ({ event }) => {
       `SELECT * FROM "place4pals" WHERE "parent_id"='pool' AND begins_with("id",'pool#') ORDER BY "id" ASC`
     );
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify(response),
-      headers: { "Access-Control-Allow-Origin": "*" },
-    };
+    return response;
   }
 };

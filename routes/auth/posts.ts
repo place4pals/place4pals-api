@@ -4,7 +4,7 @@ import { S3 } from "@aws-sdk/client-s3";
 const s3 = new S3();
 
 export const posts = async ({ event }) => {
-  const userId = event?.requestContext?.authorizer?.claims?.profile ?? process.env.mainDynamoDbUserId;
+  const userId = event?.claims?.profile;
   if (event.httpMethod === "GET") {
     const users = [];
 
@@ -45,8 +45,8 @@ export const posts = async ({ event }) => {
         content: comment.content,
         user: {
           id: getId(comment.user_id),
-          name: userDictionary[comment.user_id].name,
-          media: userDictionary[comment.user_id].media,
+          name: userDictionary[comment.user_id]?.name,
+          media: userDictionary[comment.user_id]?.media,
         },
         comments: recursivelyThreadedComments(comments, comment.id)
       }));
@@ -58,19 +58,15 @@ export const posts = async ({ event }) => {
       content: post.content,
       user: {
         id: getId(post.user_id),
-        name: userDictionary[post.user_id].name,
-        media: userDictionary[post.user_id].media,
+        name: userDictionary[post.user_id]?.name,
+        media: userDictionary[post.user_id]?.media,
       },
       typing: Array.from(post.typing ?? []),
       media: post.media,
       comments: recursivelyThreadedComments(post.comments)
     }));
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify(response),
-      headers: { "Access-Control-Allow-Origin": "*" },
-    };
+    return response;
   }
   else if (event.httpMethod === 'POST') {
     let mediaId = '';
@@ -95,11 +91,7 @@ export const posts = async ({ event }) => {
         'media':?
     }`, null, [{ S: event.body.title }, { S: event.body.content }, { S: mediaId }]);
 
-    return {
-      statusCode: 200,
-      body: true,
-      headers: { "Access-Control-Allow-Origin": "*" },
-    };
+    return true;
   }
   else if (event.httpMethod === 'DELETE') {
     const [post] = await query(`SELECT "media" FROM "place4pals" WHERE "parent_id"='post' AND "id"='post#${event.body.id}'`);
@@ -114,10 +106,6 @@ export const posts = async ({ event }) => {
     const comments = await query(`SELECT "id" FROM "place4pals" WHERE "parent_id"='post#${event.body.id}' AND begins_with("id",'comment#')`);
     await Promise.all(comments.map(comment => query(`DELETE FROM "place4pals" WHERE "parent_id"='post#${event.body.id}' AND "id"='${comment.id}'`)))
 
-    return {
-      statusCode: 200,
-      body: true,
-      headers: { "Access-Control-Allow-Origin": "*" },
-    };
+    return true;
   }
 };

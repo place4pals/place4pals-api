@@ -4,7 +4,7 @@ import { S3 } from "@aws-sdk/client-s3";
 const s3 = new S3();
 
 export const users = async ({ event }) => {
-  const userId = event?.requestContext?.authorizer?.claims?.profile ?? process.env.mainDynamoDbUserId;
+  const userId = event?.claims?.profile;
   if (event.httpMethod === "GET") {
     const response = await query(
       event.queryStringParameters?.id
