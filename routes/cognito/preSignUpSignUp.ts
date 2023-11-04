@@ -1,15 +1,8 @@
+import { event } from '#src/utils';
 import { CognitoIdentityProvider } from '@aws-sdk/client-cognito-identity-provider';
 const cognito = new CognitoIdentityProvider();
 
-export const preSignUpSignUp = async ({ event }) => {
-    //check if the username exists in current cognito pool or not
-    const usernameSearch = await cognito.listUsers({
-        UserPoolId: process.env.userPoolId,
-        AttributesToGet: ['email'],
-        Filter: `preferred_username = "${event.request.userAttributes['custom:username']}"`,
-        Limit: 1
-    });
-
+export const preSignUpSignUp = async () => {
     const emailSearch = await cognito.listUsers({
         UserPoolId: process.env.userPoolId,
         AttributesToGet: ['email'],
@@ -17,8 +10,9 @@ export const preSignUpSignUp = async ({ event }) => {
         Limit: 1
     });
 
-    if (usernameSearch.Users.length === 0 && emailSearch.Users.length === 0) {
-        // event.response.autoConfirmUser = true;
+    if (emailSearch.Users.length === 0) {
+        event.response.autoConfirmUser = true;
+        event.response.autoVerifyEmail = true;
         return event;
     }
     else {

@@ -1,8 +1,8 @@
 import { SES } from '@aws-sdk/client-ses';
-import { formatEmail } from '../../utils/formatEmail';
+import { event, formatEmail } from '#src/utils';
 const ses = new SES({ region: 'us-east-1' });
 
-export const postConfirmationConfirmForgotPassword = async ({ event }) => {
+export const postConfirmationConfirmForgotPassword = async () => {
     //send email letting user know someone reset their password
     await ses.sendEmail({
         Destination: { ToAddresses: [event.request.userAttributes['email']] },

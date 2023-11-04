@@ -4,19 +4,20 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "tsc": "tsc -noEmit",
-    "build:prod": "tsc | true && cp package.json dist/package.json && cd dist && npm install --omit=dev && zip -r lambda.zip * > /dev/null && aws --profile place4pals lambda update-function-code --function-name place4pals --zip-file \"fileb://lambda.zip\" > /dev/null && rm -rf lambda.zip && cd .. && rm -rf dist",
-    "build:staging": "tsc | true && cp package.json dist/package.json && cd dist && npm install --omit=dev && zip -r lambda.zip * > /dev/null && aws --profile place4pals lambda update-function-code --function-name place4pals-staging --zip-file \"fileb://lambda.zip\" > /dev/null && rm -rf lambda.zip && cd .. && rm -rf dist"
+    "build:prod": "esbuild ./*.ts --bundle --platform=node --outdir=dist --external:@aws-sdk && cd dist && zip -r lambda.zip * > /dev/null && aws --profile place4pals lambda update-function-code --function-name place4pals --zip-file \"fileb://lambda.zip\" > /dev/null && rm -rf lambda.zip",
+    "build:staging": "esbuild ./*.ts --bundle --platform=node --outdir=dist --external:@aws-sdk && cd dist && zip -r lambda.zip * > /dev/null && aws --profile place4pals lambda update-function-code --function-name place4pals-staging --zip-file \"fileb://lambda.zip\" > /dev/null && rm -rf lambda.zip"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "aws-jwt-verify": "^4.0.0",
-    "ksuid": "^3.0.0"
+    "serverless-postgres": "^2.1.0"
   },
   "type": "module",
   "devDependencies": {
-    "@types/aws-lambda": "^8.10.111",
-    "@types/node": "^18.14.6"
+    "esbuild": "^0.19.5"
+  },
+  "imports": {
+    "#src/*": "./*"
   }
 }

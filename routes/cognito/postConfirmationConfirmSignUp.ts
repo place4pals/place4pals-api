@@ -1,30 +1,16 @@
-import { query } from "../../utils/query";
-import { generateId } from "../../utils/ksuid";
 import { CognitoIdentityProvider } from '@aws-sdk/client-cognito-identity-provider';
+import { client, event } from "#src/utils";
 const cognito = new CognitoIdentityProvider();
 
-export const postConfirmationConfirmSignUp = async ({ event }) => {
-    const userId = generateId();
-
+export const postConfirmationConfirmSignUp = async () => {
+    const { sub, email, ['custom:username']: username } = event.request.userAttributes;
     await cognito.adminUpdateUserAttributes({
-        UserAttributes: [{
-            Name: 'preferred_username',
-            Value: event.request.userAttributes['custom:username']
-        },
-        {
-            Name: 'profile',
-            Value: userId
-        }],
+        UserAttributes: [{ Name: 'preferred_username', Value: username }],
         UserPoolId: process.env.userPoolId,
         Username: event.userName
     });
-
-    await query(`INSERT INTO "place4pals" VALUE {
-        'parent_id':'user', 
-        'id':'user#${userId}', 
-        'email':?,
-        'name':?
-    }`, null, [{ S: event.request.userAttributes['email'] }, { S: event.request.userAttributes['custom:username'] }]);
-
+    await client.connect();
+    await client.query(`INSERT INTO "users" ("id","email","name") VALUES ($1, $2, $3)`, [sub, email, username]);
+    await client.clean();
     return event;
 }
