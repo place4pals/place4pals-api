@@ -6,7 +6,7 @@ export const postConfirmationConfirmSignUp = async () => {
     const { sub, email, ['custom:username']: username } = event.request.userAttributes;
     await cognito.adminUpdateUserAttributes({
         UserAttributes: [{ Name: 'preferred_username', Value: username }],
-        UserPoolId: process.env.userPoolId,
+        UserPoolId: process.env.USER_POOL_ID,
         Username: event.userName
     });
     await client.connect();

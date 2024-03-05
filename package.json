@@ -5,13 +5,18 @@
   "main": "index.js",
   "scripts": {
     "build:prod": "esbuild ./*.ts --bundle --platform=node --outdir=dist --external:@aws-sdk && cd dist && zip -r lambda.zip * > /dev/null && aws --profile place4pals lambda update-function-code --function-name place4pals --zip-file \"fileb://lambda.zip\" > /dev/null && rm -rf lambda.zip",
-    "build:staging": "esbuild ./*.ts --bundle --platform=node --outdir=dist --external:@aws-sdk && cd dist && zip -r lambda.zip * > /dev/null && aws --profile place4pals lambda update-function-code --function-name place4pals-staging --zip-file \"fileb://lambda.zip\" > /dev/null && rm -rf lambda.zip"
+    "build:staging": "esbuild ./*.ts --bundle --platform=node --outdir=dist --external:@aws-sdk && cd dist && zip -r lambda.zip * > /dev/null && aws --profile place4pals lambda update-function-code --function-name place4pals-staging --zip-file \"fileb://lambda.zip\" > /dev/null && rm -rf lambda.zip",
+    "build": "yarn build:staging && yarn build:prod"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "aws-jwt-verify": "^4.0.0",
-    "serverless-postgres": "^2.1.0"
+    "chrono-node": "^2.7.5",
+    "openai": "^4.28.0",
+    "serpapi": "^2.0.0",
+    "serverless-postgres": "^2.1.0",
+    "stripe": "^14.18.0"
   },
   "type": "module",
   "devDependencies": {

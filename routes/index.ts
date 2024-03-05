@@ -5,7 +5,7 @@ import * as internalRoutes from "./internal";
 import * as publicRoutes from "./public";
 import * as scheduledRoutes from "./scheduled";
 import { CognitoJwtVerifier } from "aws-jwt-verify";
-const verifier = CognitoJwtVerifier.create({ userPoolId: process.env.userPoolId, tokenUse: "id", clientId: process.env.clientId });
+const verifier = CognitoJwtVerifier.create({ userPoolId: process.env.USER_POOL_ID, tokenUse: "id", clientId: process.env.WEB_CLIENT_ID });
 
 export const authRouter = async () => {
     try {
