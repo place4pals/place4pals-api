@@ -1,0 +1,25 @@
+name: Deployment
+on:
+  push:
+    branches:
+      - master
+      - staging
+jobs:
+  Deployment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+      - name: Deploy to Lambda
+        run: |
+          npm install
+          npx esbuild index.ts --bundle --platform=node --outdir=dist --external:@aws-sdk
+          cd dist
+          zip -r lambda.zip index.js > /dev/null
+          aws lambda update-function-code --function-name ${{ github.ref == 'refs/heads/master' && 'place4pals' || 'place4pals-staging' }} --zip-file fileb://lambda.zip > /dev/null
