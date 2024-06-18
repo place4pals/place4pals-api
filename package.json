@@ -6,7 +6,8 @@
   "scripts": {
     "build:prod": "esbuild index.ts --bundle --platform=node --outdir=dist --external:@aws-sdk && cd dist && zip -r lambda.zip index.js > /dev/null && aws --profile place4pals lambda update-function-code --function-name place4pals --zip-file \"fileb://lambda.zip\" > /dev/null && rm -rf lambda.zip",
     "build:staging": "esbuild index.ts --bundle --platform=node --outdir=dist --external:@aws-sdk && cd dist && zip -r lambda.zip index.js > /dev/null && aws --profile place4pals lambda update-function-code --function-name place4pals-staging --zip-file \"fileb://lambda.zip\" > /dev/null && rm -rf lambda.zip",
-    "build": "yarn build:staging && yarn build:prod"
+    "build": "yarn build:staging && yarn build:prod",
+    "deploy": "sh ./deploy.sh"
   },
   "author": "",
   "license": "ISC",

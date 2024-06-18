@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Resources:
+  place4palsApi:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: "place4pals-api"
+      Handler: "index.handler"
+      Role:
+        Fn::GetAtt: ["LambdaExecutionRole", "Arn"]
+      Runtime: "nodejs20.x"
+      MemorySize: 1024
+      Timeout: 900
+      Architectures: ["arm64"]
+      Code:
+        ZipFile: "export const handler = async() => null"
+      Environment:
+        Variables:
+          NODE_ENV: "production"
+
+  place4palsApiEventInvokeConfig:
+    Type: "AWS::Lambda::EventInvokeConfig"
+    Properties:
+      FunctionName: !Ref place4palsApi
+      MaximumRetryAttempts: 0
+      Qualifier: "$LATEST"
+
+  LambdaExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: "lambda-permissions"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: "lambda.amazonaws.com"
+            Action: ["sts:AssumeRole"]
+      Policies:
+        - PolicyName: "LambdaBasicExecution"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action: ["logs:*", "s3:*", "lambda:*", "ec2:*"]
+                Resource: "*"
+
+  LambdaFunctionUrl:
+    Type: "AWS::Lambda::Url"
+    Properties:
+      TargetFunctionArn:
+        Ref: "place4palsApi"
+      AuthType: "NONE"
+      Cors:
+        AllowOrigins: ["*"]
+        AllowHeaders: ["*"]
+        AllowMethods: ["*"]
+        AllowCredentials: true
