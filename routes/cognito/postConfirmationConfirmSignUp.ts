@@ -1,5 +1,5 @@
 import { CognitoIdentityProvider } from '@aws-sdk/client-cognito-identity-provider';
-import { client, event } from "#src/utils";
+import { db, event } from "#src/utils";
 const cognito = new CognitoIdentityProvider();
 
 export const postConfirmationConfirmSignUp = async () => {
@@ -9,8 +9,8 @@ export const postConfirmationConfirmSignUp = async () => {
         UserPoolId: process.env.USER_POOL_ID,
         Username: event.userName
     });
-    await client.connect();
-    await client.query(`INSERT INTO "users" ("id","email","username") VALUES ($1, $2, $3)`, [sub, email, nickname]);
-    await client.clean();
+    await db.connect();
+    await db.query(`INSERT INTO "users" ("id","email","username") VALUES ($1, $2, $3)`, [sub, email, nickname]);
+    await db.clean();
     return event;
 }

@@ -1,5 +1,5 @@
 export const formatEmail = ({ event, body }) => {
-    return `<p><img width="200" src="https://staging.place4pals.com/small_logo.png"></p>
+    return `<p><img width="200" src="https://place4pals.com/favicon.png"></p>
     Hey ${event?.request?.userAttributes?.preferred_username ?? 'pal'},
     <p>${body}</p>
     <p>Thanks,

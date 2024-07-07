@@ -1,0 +1,11 @@
+import KSUID from "ksuid";
+
+export const generateId = () => {
+    return KSUID.randomSync().string;
+};
+export const getId = (string) => {
+    return string.split("#")[1];
+};
+export const idToDate = (string) => {
+    return KSUID.parse(getId(string)).date;
+};

@@ -1,0 +1,1 @@
+export { getJson as serpapi } from "serpapi";
